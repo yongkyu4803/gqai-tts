@@ -44,32 +44,65 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Log API key prefix for debugging (안전하게 앞 7자만)
+    // Log API key info for debugging
+    console.log("API Key length:", apiKey.length);
     console.log("API Key prefix:", apiKey.substring(0, 7) + "...");
+    console.log("API Key suffix:", "..." + apiKey.substring(apiKey.length - 4));
 
     // Initialize OpenAI client
     const openai = new OpenAI({
       apiKey: apiKey,
     });
 
-    // Call OpenAI TTS API
-    const mp3 = await openai.audio.speech.create({
-      model,
-      voice,
-      input: text,
-      response_format: format,
-      speed,
-    });
+    // Call OpenAI TTS API with retry logic
+    let lastError: any = null;
+    const maxRetries = 3;
 
-    const buffer = Buffer.from(await mp3.arrayBuffer());
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`TTS API call attempt ${attempt}/${maxRetries}`);
 
-    // Return audio stream
-    return new NextResponse(buffer, {
-      headers: {
-        "Content-Type": `audio/${format}`,
-        "Content-Length": buffer.length.toString(),
-      },
-    });
+        const mp3 = await openai.audio.speech.create({
+          model,
+          voice,
+          input: text,
+          response_format: format,
+          speed,
+        });
+
+        console.log(`TTS API call succeeded on attempt ${attempt}`);
+
+        const buffer = Buffer.from(await mp3.arrayBuffer());
+
+        // Return audio stream
+        return new NextResponse(buffer, {
+          headers: {
+            "Content-Type": `audio/${format}`,
+            "Content-Length": buffer.length.toString(),
+          },
+        });
+      } catch (error: any) {
+        lastError = error;
+        console.error(`TTS API attempt ${attempt} failed:`, {
+          status: error?.status,
+          code: error?.code,
+          type: error?.type,
+          message: error?.message,
+        });
+
+        // Retry even for 401 errors (OpenAI has intermittent auth issues)
+        if (attempt < maxRetries) {
+          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+          console.log(`Retrying after ${delay}ms... (${maxRetries - attempt} retries left)`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else {
+          console.error(`All ${maxRetries} attempts failed`);
+        }
+      }
+    }
+
+    // If we get here, all retries failed
+    throw lastError;
   } catch (error: any) {
     console.error("TTS API Error:", error);
 
