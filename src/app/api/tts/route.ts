@@ -33,16 +33,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    if (!apiKey) {
+      console.error("Environment variable OPENAI_API_KEY is not set");
+      console.error("Available env vars:", Object.keys(process.env).filter(k => k.includes('OPENAI')));
       return NextResponse.json(
-        { error: "OpenAI API 키가 설정되지 않았습니다." },
+        { error: "OpenAI API 키가 설정되지 않았습니다. Vercel 환경변수를 확인해주세요." },
         { status: 500 }
       );
     }
 
+    // Log API key prefix for debugging (안전하게 앞 7자만)
+    console.log("API Key prefix:", apiKey.substring(0, 7) + "...");
+
     // Initialize OpenAI client
     const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey: apiKey,
     });
 
     // Call OpenAI TTS API
