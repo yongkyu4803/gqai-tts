@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { TTSVoice } from "@/types/tts";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 interface VoiceOption {
   value: TTSVoice;
