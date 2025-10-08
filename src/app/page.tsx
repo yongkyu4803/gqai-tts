@@ -3,13 +3,23 @@
 import { TTSForm } from "@/components/TTSForm";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { HistoryList } from "@/components/HistoryList";
+import PasswordAuth from "@/components/PasswordAuth";
 import { useTTS } from "@/lib/hooks/useTTS";
 import { toast } from "sonner";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Sparkles } from "lucide-react";
 
 export default function Home() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const { isLoading, error, audioUrl, generateSpeech, clearError } = useTTS();
+
+  useEffect(() => {
+    // Check if user is already authenticated (from session storage)
+    const authenticated = sessionStorage.getItem("authenticated");
+    if (authenticated === "true") {
+      setIsAuthenticated(true);
+    }
+  }, []);
 
   useEffect(() => {
     if (error) {
@@ -17,6 +27,15 @@ export default function Home() {
       clearError();
     }
   }, [error, clearError]);
+
+  const handleAuthenticated = () => {
+    sessionStorage.setItem("authenticated", "true");
+    setIsAuthenticated(true);
+  };
+
+  if (!isAuthenticated) {
+    return <PasswordAuth onAuthenticated={handleAuthenticated} />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 dark:from-neutral-900 dark:via-orange-950/30 dark:to-amber-950/20">
